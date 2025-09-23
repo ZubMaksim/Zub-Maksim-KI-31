@@ -1,0 +1,82 @@
+import java.util.Random;
+
+public class Main {
+
+    static class MonteCarloTask extends Thread {
+        private final long points;
+        private long insideCircle = 0;
+
+        public MonteCarloTask(long points) {
+            this.points = points;
+        }
+
+        @Override
+        public void run() {
+            Random rand = new Random();
+            long count = 0;
+            for (long i = 0; i < points; i++) {
+                double x = rand.nextDouble();
+                double y = rand.nextDouble();
+                if (x * x + y * y <= 1.0) {
+                    count++;
+                }
+            }
+            insideCircle = count;
+        }
+
+        public long getInsideCircle() {
+            return insideCircle;
+        }
+    }
+
+    public static double calculatePiSingleThread(long totalPoints) {
+        Random rand = new Random();
+        long insideCircle = 0;
+        for (long i = 0; i < totalPoints; i++) {
+            double x = rand.nextDouble();
+            double y = rand.nextDouble();
+            if (x * x + y * y <= 1.0) {
+                insideCircle++;
+            }
+        }
+        return 4.0 * insideCircle / totalPoints;
+    }
+
+    public static double calculatePiMultiThread(long totalPoints, int numThreads) throws InterruptedException {
+        long pointsPerThread = totalPoints / numThreads;
+        MonteCarloTask[] tasks = new MonteCarloTask[numThreads];
+
+        for (int i = 0; i < numThreads; i++) {
+            tasks[i] = new MonteCarloTask(pointsPerThread);
+            tasks[i].start();
+        }
+
+        long insideCircleTotal = 0;
+        for (MonteCarloTask task : tasks) {
+            task.join();
+            insideCircleTotal += task.getInsideCircle();
+        }
+
+        return 4.0 * insideCircleTotal / totalPoints;
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        long totalPoints = 1_000_000;
+
+        long start = System.nanoTime();
+        double piSingle = calculatePiSingleThread(totalPoints);
+        long end = System.nanoTime();
+        System.out.printf("Single-thread: pi = %.6f, time = %.3f ms%n",
+                piSingle, (end - start) / 1e6);
+
+        int[] threadCounts = {2, 4, 8, 16, 32, 64};
+
+        for (int n : threadCounts) {
+            start = System.nanoTime();
+            double pi = calculatePiMultiThread(totalPoints, n);
+            end = System.nanoTime();
+            System.out.printf("%2d threads: pi = %.6f, time = %.3f ms%n",
+                    n, pi, (end - start) / 1e6);
+        }
+    }
+}

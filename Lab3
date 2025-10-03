@@ -1,0 +1,71 @@
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.LongAdder;
+
+public class Main {
+
+    public static void main(String[] args) throws InterruptedException {
+        final int availableCores = Runtime.getRuntime().availableProcessors();
+
+        final int threads = args.length >= 1 ? Integer.parseInt(args[0]) : availableCores;
+        final int MAX_NUMBER = args.length >= 2 ? Integer.parseInt(args[1]) : 10_000_000;
+        final int BATCH_SIZE = args.length >= 3 ? Integer.parseInt(args[2]) : 10_000;
+
+        System.out.printf("Threads: %d | Numbers: 1...%d | Batch size: %d%n", threads, MAX_NUMBER, BATCH_SIZE);
+
+        ExecutorService exec = Executors.newFixedThreadPool(threads);
+        LongAdder totalSteps = new LongAdder();
+
+        final int tasks = (MAX_NUMBER + BATCH_SIZE - 1) / BATCH_SIZE;
+        CountDownLatch latch = new CountDownLatch(tasks);
+
+        long startTime = System.currentTimeMillis();
+
+        for (int start = 1; start <= MAX_NUMBER; start += BATCH_SIZE) {
+            final int s = start;
+            final int end = Math.min(MAX_NUMBER, s + BATCH_SIZE - 1);
+
+            exec.submit(() -> {
+                try {
+                    long localSum = 0L;
+
+                    for (int i = s; i <= end; i++) {
+                        localSum += collatzSteps(i);
+                    }
+
+                    totalSteps.add(localSum);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        exec.shutdown();
+        latch.await();
+
+        long endTime = System.currentTimeMillis();
+
+        double average = totalSteps.doubleValue() / (double) MAX_NUMBER;
+
+        System.out.printf("Total steps (sum): %d%n", totalSteps.longValue());
+        System.out.printf("Average steps per number: %.6f%n", average);
+        System.out.printf("Elapsed time: %.3f s%n", (endTime - startTime) / 1000.0);
+    }
+
+    static int collatzSteps(long n) {
+        if (n <= 0) throw new IllegalArgumentException("n must be positive: " + n);
+        int steps = 0;
+        while (n != 1L) {
+            if ((n & 1L) == 0L) {
+                n = n >>> 1;
+            } else {
+                if (n > (Long.MAX_VALUE - 1L) / 3L) {
+                    throw new ArithmeticException("Potential overflow computing 3*n+1 for n=" + n);
+                }
+                n = 3L * n + 1L;
+            }
+            steps++;
+
+        }
+        return steps;
+    }
+}

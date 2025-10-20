@@ -1,0 +1,38 @@
+import java.util.stream.IntStream;
+
+public class Main {
+
+    public static void main(String[] args) {
+        final int availableCores = Runtime.getRuntime().availableProcessors();
+
+        final int threads = args.length >= 1 ? Integer.parseInt(args[0]) : availableCores;
+        final int MAX_NUMBER = args.length >= 2 ? Integer.parseInt(args[1]) : 10_000_000;
+
+        System.out.printf("Threads: %d | Numbers: 1...%d%n", threads, MAX_NUMBER);
+
+        long startTime = System.currentTimeMillis();
+
+        double totalSteps = IntStream.rangeClosed(1, MAX_NUMBER)
+                .parallel()
+                .mapToLong(Main::collatzSteps)
+                .sum();
+
+        long endTime = System.currentTimeMillis();
+
+        double average = totalSteps / (double) MAX_NUMBER;
+
+        System.out.printf("Total steps (sum): %.0f%n", totalSteps);
+        System.out.printf("Average steps per number: %.6f%n", average);
+        System.out.printf("Elapsed time: %.3f s%n", (endTime - startTime) / 1000.0);
+    }
+
+    static int collatzSteps(long n) {
+        if (n <= 0) throw new IllegalArgumentException("n must be positive: " + n);
+        int steps = 0;
+        while (n != 1L) {
+            n = ((n & 1L) == 0L) ? n >>> 1 : 3L * n + 1L;
+            steps++;
+        }
+        return steps;
+    }
+}
